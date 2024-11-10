@@ -143,6 +143,10 @@ impl FdtHeader {
         self.magic.get() == 0xd00dfeed
     }
 
+    fn version(&self) -> u32 {
+        self.version.get()
+    }
+
     fn struct_range(&self) -> core::ops::Range<usize> {
         let start = self.off_dt_struct.get() as usize;
         let end = start + self.size_dt_struct.get() as usize;
@@ -409,6 +413,11 @@ impl<'a> Fdt<'a> {
     /// Total size of the devicetree in bytes
     pub fn total_size(&self) -> usize {
         self.header.totalsize.get() as usize
+    }
+
+    /// The version of the devicetree.
+    pub fn version(&self) -> u32 {
+        self.header.version()
     }
 
     fn cstr_at_offset(&self, offset: usize) -> CStr<'a> {
