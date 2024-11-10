@@ -6,6 +6,12 @@ fn main() {
     let fdt = fdt::Fdt::new(MY_FDT).unwrap();
 
     print_node(fdt.find_node("/").unwrap(), 0);
+
+    println!("version: {}", fdt.version());
+
+    for node in fdt.all_nodes() {
+        println!("{}", node.name);
+    }
 }
 
 fn print_node(node: FdtNode<'_, '_>, n_spaces: usize) {

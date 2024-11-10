@@ -477,6 +477,7 @@ pub(crate) fn all_nodes<'b, 'a: 'b>(header: &'b Fdt<'a>) -> impl Iterator<Item =
     let mut parents: [&[u8]; 64] = [&[]; 64];
     let mut parent_index = 0;
 
+    let mut offset = 0usize;
     core::iter::from_fn(move || {
         if stream.is_empty() || done {
             return None;
@@ -485,25 +486,34 @@ pub(crate) fn all_nodes<'b, 'a: 'b>(header: &'b Fdt<'a>) -> impl Iterator<Item =
         while stream.peek_u32()?.get() == FDT_END_NODE {
             parent_index -= 1;
             stream.skip(4);
+            offset += 4;
         }
 
         if stream.peek_u32()?.get() == FDT_END {
             done = true;
+            // so the byte immediately after the FDT_END token has
+            // offset from the beginning of the structure block equal to the value of the size_dt_struct field in the device tree blob
+            // header.
+            assert_eq!(offset, header.header.size_dt_struct.get() as usize);
             return None;
         }
 
         while stream.peek_u32()?.get() == FDT_NOP {
             stream.skip(4);
+            offset += 4;
         }
 
         match stream.u32()?.get() {
-            FDT_BEGIN_NODE => {}
+            FDT_BEGIN_NODE => {
+                offset += 1;
+            }
             _ => return None,
         }
 
         let unit_name = CStr::new(stream.remaining()).expect("unit name C str").as_str().unwrap();
         let full_name_len = unit_name.len() + 1;
-        skip_4_aligned(&mut stream, full_name_len);
+        offset += skip_4_aligned(&mut stream, full_name_len);
+        // offset += ((full_name_len + 3) & !0x3);
 
         let curr_node = stream.remaining();
 
@@ -512,10 +522,12 @@ pub(crate) fn all_nodes<'b, 'a: 'b>(header: &'b Fdt<'a>) -> impl Iterator<Item =
 
         while stream.peek_u32()?.get() == FDT_NOP {
             stream.skip(4);
+            offset += 4;
         }
 
         while stream.peek_u32()?.get() == FDT_PROP {
             NodeProperty::parse(&mut stream, header);
+            offset += unsafe {NODE_PROP_PARSE};
         }
 
         Some(FdtNode {
@@ -559,6 +571,8 @@ pub struct NodeProperty<'a> {
     pub value: &'a [u8],
 }
 
+static mut NODE_PROP_PARSE: usize = 0;
+
 impl<'a> NodeProperty<'a> {
     /// Attempt to parse the property value as a `usize`
     pub fn as_usize(self) -> Option<usize> {
@@ -585,17 +599,21 @@ impl<'a> NodeProperty<'a> {
     }
 
     fn parse(stream: &mut FdtData<'a>, header: &Fdt<'a>) -> Self {
+        let mut parsed = 0;
+        unsafe { NODE_PROP_PARSE = 0; }
         match stream.u32().unwrap().get() {
-            FDT_PROP => {}
+            FDT_PROP => { parsed += 4; }
             other => panic!("bad prop, tag: {}", other),
         }
 
         let prop = FdtProperty::from_bytes(stream).expect("FDT property");
         let data_len = prop.len.get() as usize;
+        parsed += 8;
 
         let data = &stream.remaining()[..data_len];
 
-        skip_4_aligned(stream, data_len);
+        parsed += skip_4_aligned(stream, data_len);
+        unsafe {NODE_PROP_PARSE = parsed;}
 
         NodeProperty { name: header.str_at_offset(prop.name_offset.get() as usize), value: data }
     }
@@ -628,6 +646,8 @@ impl MemoryReservation {
     }
 }
 
-fn skip_4_aligned(stream: &mut FdtData<'_>, len: usize) {
+// is this correct??
+fn skip_4_aligned(stream: &mut FdtData<'_>, len: usize) -> usize {
     stream.skip((len + 3) & !0x3);
+    (len + 3) & !0x3
 }

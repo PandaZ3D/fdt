@@ -420,6 +420,11 @@ impl<'a> Fdt<'a> {
         self.header.version()
     }
 
+    /// The lowest backwards compatible version of the devicetree.
+    pub fn last_compatable_version(&self) -> u32 {
+        self.header.last_comp_version.get()
+    }
+
     fn cstr_at_offset(&self, offset: usize) -> CStr<'a> {
         CStr::new(&self.strings_block()[offset..]).expect("no null terminating string on C str?")
     }

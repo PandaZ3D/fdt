@@ -8,7 +8,7 @@ pub fn print_node(
     n_spaces: usize,
 ) -> core::fmt::Result {
     write!(f, "{:width$}", ' ', width = n_spaces)?;
-    writeln!(f, "{} {{", if node.name.is_empty() { "/" } else { node.name })?;
+    writeln!(f, "{} {{\r", if node.name.is_empty() { "/" } else { node.name })?;
     let mut were_props = false;
     for prop in node.properties() {
         were_props = true;
@@ -32,7 +32,7 @@ pub fn print_node(
             }
             "compatible" => writeln!(
                 f,
-                "{:width$}compatible = {:?}",
+                "{:width$}compatible = {:?}\r",
                 ' ',
                 prop.as_str().unwrap(),
                 width = n_spaces + 4
@@ -40,7 +40,7 @@ pub fn print_node(
             name if name.contains("-cells") => {
                 writeln!(
                     f,
-                    "{:width$}{} = <{:#x}>",
+                    "{:width$}{} = <{:#x}>\r",
                     ' ',
                     name,
                     prop.as_usize().unwrap(),
@@ -49,12 +49,12 @@ pub fn print_node(
             }
             _ => match prop.as_str() {
                 Some(value) if !value.is_empty() => {
-                    writeln!(f, "{:width$}{} = {:?}", ' ', prop.name, value, width = n_spaces + 4)?
+                    writeln!(f, "{:width$}{} = {:?}\r", ' ', prop.name, value, width = n_spaces + 4)?
                 }
                 _ => match prop.value.len() {
                     4 | 8 => writeln!(
                         f,
-                        "{:width$}{} = <{:#x}>",
+                        "{:width$}{} = <{:#x}>\r",
                         ' ',
                         prop.name,
                         prop.as_usize().unwrap(),
@@ -62,7 +62,7 @@ pub fn print_node(
                     )?,
                     _ => writeln!(
                         f,
-                        "{:width$}{} = {:?}",
+                        "{:width$}{} = {:?}\r",
                         ' ',
                         prop.name,
                         prop.value,
@@ -74,13 +74,13 @@ pub fn print_node(
     }
 
     if node.children().next().is_some() && were_props {
-        writeln!(f)?;
+        writeln!(f, "\r")?;
     }
 
     let mut first = true;
     for child in node.children() {
         if !first {
-            writeln!(f)?;
+            writeln!(f, "\r")?;
         }
 
         print_node(f, child, n_spaces + 4)?;
@@ -91,7 +91,7 @@ pub fn print_node(
         write!(f, "{:width$}", ' ', width = n_spaces)?;
     }
 
-    writeln!(f, "}};")?;
+    writeln!(f, "}};\r")?;
 
     Ok(())
 }
