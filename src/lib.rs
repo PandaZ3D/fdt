@@ -420,6 +420,11 @@ impl<'a> Fdt<'a> {
         self.header.version()
     }
 
+    /// The version of the devicetree.
+    pub fn off_dt_struct(&self) -> u32 {
+        self.header.off_dt_struct.get()
+    }
+
     /// The lowest backwards compatible version of the devicetree.
     pub fn last_compatable_version(&self) -> u32 {
         self.header.last_comp_version.get()

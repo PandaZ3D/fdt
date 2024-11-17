@@ -75,7 +75,9 @@ impl<'b, 'a: 'b> FdtNode<'b, 'a> {
                 return None;
             }
 
-            while stream.peek_u32()?.get() == FDT_NOP {
+            while stream.peek_u32()?.get() == FDT_NOP ||
+                !is_valid_token(stream.peek_u32()?.get())
+            {
                 stream.skip(4);
             }
 
