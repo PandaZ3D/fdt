@@ -14,6 +14,14 @@ const FDT_PROP: u32 = 3;
 pub(crate) const FDT_NOP: u32 = 4;
 const FDT_END: u32 = 5;
 
+pub(crate) fn is_valid_token(token: u32) -> bool {
+    match token {
+        FDT_BEGIN_NODE | FDT_END_NODE | FDT_PROP
+            | FDT_NOP | FDT_END => true,
+        _ => false,
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
 struct FdtProperty {
@@ -477,6 +485,7 @@ pub(crate) fn all_nodes<'b, 'a: 'b>(header: &'b Fdt<'a>) -> impl Iterator<Item =
     let mut parents: [&[u8]; 64] = [&[]; 64];
     let mut parent_index = 0;
 
+    // padding may be 0x0 bytes which can happen after any token ...
     let mut offset = 0usize;
     core::iter::from_fn(move || {
         if stream.is_empty() || done {
@@ -498,15 +507,21 @@ pub(crate) fn all_nodes<'b, 'a: 'b>(header: &'b Fdt<'a>) -> impl Iterator<Item =
             return None;
         }
 
-        while stream.peek_u32()?.get() == FDT_NOP {
+        // maybe make it so that we skip invalid tokens ...
+        while stream.peek_u32()?.get() == FDT_NOP ||
+            !is_valid_token(stream.peek_u32()?.get())        
+        {
+            // TODO: maybe skip any invalid bytes after a NOP
             stream.skip(4);
             offset += 4;
         }
 
+        offset += 1;
         match stream.u32()?.get() {
-            FDT_BEGIN_NODE => {
-                offset += 1;
-            }
+            FDT_BEGIN_NODE => {}
+            // maybe the issue is here, if we reach an invalid token,
+            // then parsing is all bad. I think that None for iters
+            // means that the iter is done.
             _ => return None,
         }
 
@@ -520,11 +535,17 @@ pub(crate) fn all_nodes<'b, 'a: 'b>(header: &'b Fdt<'a>) -> impl Iterator<Item =
         parent_index += 1;
         parents[parent_index] = curr_node;
 
-        while stream.peek_u32()?.get() == FDT_NOP {
+        // can't any number of FDT NOPS be used to zero out props?
+        while stream.peek_u32()?.get() == FDT_NOP ||
+            !is_valid_token(stream.peek_u32()?.get())
+        {
+            // this token has no extra data, it is followed by the next
+            // token which can be any valid token.
             stream.skip(4);
             offset += 4;
         }
 
+        // advance stream to continue past property nodes
         while stream.peek_u32()?.get() == FDT_PROP {
             NodeProperty::parse(&mut stream, header);
             offset += unsafe {NODE_PROP_PARSE};
