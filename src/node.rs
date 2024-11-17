@@ -522,7 +522,10 @@ pub(crate) fn all_nodes<'b, 'a: 'b>(header: &'b Fdt<'a>) -> impl Iterator<Item =
             // maybe the issue is here, if we reach an invalid token,
             // then parsing is all bad. I think that None for iters
             // means that the iter is done.
-            _ => return None,
+            _ => {
+                    panic!("invalid token after NOP")
+                    // return None
+                },
         }
 
         let unit_name = CStr::new(stream.remaining()).expect("unit name C str").as_str().unwrap();
